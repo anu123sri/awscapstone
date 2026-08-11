@@ -1,0 +1,8 @@
+aws_region              = "us-east-1"
+environment             = "production"
+project_name            = "ticketdesk"
+owner                   = "pod-ref"
+costcenter              = "foundation"
+backend_desired_count   = 2
+db_name                 = "ticketdesk_db"
+db_username             = "ticketdesk_user"
