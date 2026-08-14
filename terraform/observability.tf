@@ -32,6 +32,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   threshold           = 5
   alarm_description   = "Alarm triggered when target 5xx error count exceeds 5 in 5 minutes"
   alarm_actions       = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
 
   dimensions = {
     LoadBalancer = aws_lb.main.arn_suffix
@@ -50,6 +51,7 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
   threshold           = 1
   alarm_description   = "Alarm triggered when 1 or more ECS target tasks fail health checks"
   alarm_actions       = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
 
   dimensions = {
     LoadBalancer = aws_lb.main.arn_suffix
@@ -69,6 +71,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu" {
   threshold           = 80
   alarm_description   = "Alarm triggered when RDS MySQL CPU utilization exceeds 80%"
   alarm_actions       = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "notBreaching"
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.mysql.identifier
