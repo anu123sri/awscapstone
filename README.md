@@ -207,8 +207,7 @@ terraform apply -auto-approve
 
 ## 📊 Verification & Documentation Matrix
 
-* **System Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
-* **Deployment Guide & Runbook**: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-* **Deployment Readiness Checklist (34 Items)**: [DEPLOYMENT_READINESS_CHECKLIST.md](DEPLOYMENT_READINESS_CHECKLIST.md)
+* **Master Technical Guide (End-to-End)**: [MASTER_DEPLOYMENT_GUIDE.md](MASTER_DEPLOYMENT_GUIDE.md)
 * **One-Page AWS Cost Report**: [cost_report.md](cost_report.md)
-* **10-Minute Facilitator Demo Script**: [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md)
+* **Automated CI/CD Pipeline Workflow**: [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+* **Light Load Sanity Check Script**: [scripts/load_test.py](scripts/load_test.py)
