@@ -1,5 +1,7 @@
-# 🎫 TicketDesk — Enterprise Cloud-Native Support Desk Platform
-> **AWS Capstone Project | Production-Ready Multi-Tier Cloud Architecture**
+# TicketDesk — AWS Cloud Deployment (Capstone POC)
+
+> **Foundation Level Capstone Project**  
+> Complete Infrastructure as Code (IaC), Multi-stage Containerization, AWS ECS Fargate, RDS MySQL, CloudFront + S3, Serverless Attachments, CI/CD Pipeline, and CloudWatch Observability.
 
 [![CI/CD Pipeline](https://github.com/anu123sri/awscapstone/actions/workflows/deploy.yml/badge.svg)](https://github.com/anu123sri/awscapstone/actions)
 [![AWS Architecture](https://img.shields.io/badge/AWS-Fargate%20%7C%20RDS%20%7C%20S3%20%7C%20CloudFront-232F3E?logo=amazon-aws)](https://aws.amazon.com/)
@@ -11,168 +13,202 @@
 
 ## 🌐 Live Production Endpoints
 
-* **Production URL (CloudFront CDN)**: [https://d34fecnctmxvyw.cloudfront.net](https://d34fecnctmxvyw.cloudfront.net)
-* **Application Load Balancer Endpoint**: `http://ticketdesk-alb-683270245.us-east-1.elb.amazonaws.com`
-* **Health Check Endpoint**: [https://d34fecnctmxvyw.cloudfront.net/api/health](https://d34fecnctmxvyw.cloudfront.net/api/health)
+* **Application Live URL (CloudFront CDN)**: [https://d34fecnctmxvyw.cloudfront.net](https://d34fecnctmxvyw.cloudfront.net)
+* **Backend Health Check**: [https://d34fecnctmxvyw.cloudfront.net/api/health](https://d34fecnctmxvyw.cloudfront.net/api/health)
+* **ALB Direct DNS**: `http://ticketdesk-alb-683270245.us-east-1.elb.amazonaws.com`
 * **GitHub Repository**: [https://github.com/anu123sri/awscapstone](https://github.com/anu123sri/awscapstone)
 
 ---
 
-## 🏗️ High-Level Cloud Architecture
+## 🏛️ System Architecture
 
-```mermaid
-flowchart TD
-    User([👤 User / Browser])
-    CloudFront[🌐 CloudFront CDN Distribution<br/>d34fecnctmxvyw.cloudfront.net]
-    S3Frontend[(🪣 S3 Bucket: Static Frontend Assets<br/>OAC Restricted Access)]
-    S3Attachments[(🪣 S3 Bucket: Attachments<br/>Direct Browser PUT & Thumbnails)]
-    Lambda[⚡ Lambda: Thumbnail Generator<br/>Pillow 200x200 Image Resizer]
-    
-    subgraph VPC ["AWS VPC (10.0.0.0/16) — Region us-east-1"]
-        subgraph PublicSubnets ["Public Subnets (AZ-1a / AZ-1b)"]
-            ALB[⚖️ Application Load Balancer<br/>ticketdesk-alb]
-            NAT[🚪 NAT Gateway + Elastic IP]
-        end
-        
-        subgraph PrivateAppSubnets ["Private Application Subnets (AZ-1a / AZ-1b)"]
-            ECS1[🐳 ECS Fargate Task 1<br/>Spring Boot API]
-            ECS2[🐳 ECS Fargate Task 2<br/>Spring Boot API]
-        end
-        
-        subgraph PrivateDBSubnets ["Private Database Subnets (AZ-1a / AZ-1b)"]
-            RDS[(🗄️ Amazon RDS MySQL 8.0<br/>Multi-AZ Subnet Group)]
-        end
-    end
-
-    User -->|HTTPS Request| CloudFront
-    CloudFront -->|Static Files / UI| S3Frontend
-    CloudFront -->|/api/* Dynamic Traffic| ALB
-    User -.->|Direct S3 PUT Upload (Presigned URL)| S3Attachments
-    S3Attachments -->|ObjectCreated Event| Lambda
-    Lambda -->|Write 200x200 JPEG| S3Attachments
-
-    ALB -->|Forward TCP:8080| ECS1
-    ALB -->|Forward TCP:8080| ECS2
-    ECS1 -->|Outbound via NAT| NAT
-    ECS2 -->|Outbound via NAT| NAT
-    ECS1 -->|MySQL TCP:3306| RDS
-    ECS2 -->|MySQL TCP:3306| RDS
+```text
+┌──────────────────┐
+│     Browser      │ ───────► CloudFront + S3 (Static React Frontend)
+└────────┬─────────┘
+         │ /api/*
+┌────────▼─────────┐
+│ Application Load │ (Public Subnets across 2 AZs: us-east-1a & us-east-1b)
+│     Balancer     │
+└────────┬─────────┘
+         │
+┌────────▼─────────┐
+│   ECS Fargate    │ (Private Subnets across 2 AZs - Spring Boot Java 21 API)
+└────┬────────┬────┘
+     │        │
+┌────▼───┐ ┌──▼─────────────┐
+│  RDS   │ │ S3 Attachments │ (Direct Browser PUT Upload via Presigned URL)
+│ MySQL  │ │     Bucket     │
+└────────┘ └────┬───────────┘
+                │ (s3:ObjectCreated:Put on uploads/)
+           ┌────▼───────────┐
+           │   AWS Lambda   │ (Pillow Thumbnail Generator -> thumbnails/)
+           └────────────────┘
 ```
 
 ---
 
-## 🚀 Key Features & Capabilities
+## 🚀 Quick Start Guide — Deployment from Scratch
 
-1. **Enterprise Role-Based Access Control (RBAC)**:
-   * **Employees**: Create, track, filter tickets, inspect attachment thumbnails, and update profile settings.
-   * **Admins**: Manage user directories, toggle roles, configure ticket categories, and oversee system analytics.
-2. **Serverless Direct-to-S3 Attachment Pipeline (M5)**:
-   * Backend generates secure 15-minute presigned S3 URLs.
-   * Browser streams image bytes directly to S3 via HTTP PUT without taxing API memory.
-   * S3 event automatically invokes an AWS Lambda function running Python Pillow to generate 200×200 JPEG thumbnails.
-3. **Automated CI/CD Pipeline (M6)**:
-   * GitHub Actions runs Gitleaks secret scanner, executes Maven unit tests on JDK 21, builds container images, pushes to Amazon ECR, deploys rolling updates to ECS Fargate, syncs frontend to S3, invalidates CloudFront CDN cache, and runs automated smoke tests.
-4. **Full-Stack Observability & Alarms (M7)**:
-   * Centralized CloudWatch logging with a 14-day finite retention policy.
-   * Live CloudWatch Operations Dashboard tracking traffic, latency, CPU/memory, and RDS connections.
-   * 3 actionable CloudWatch Metric Alarms with Amazon SNS email alerting.
-5. **Production Hardening (M8)**:
-   * 100% universal resource tagging (`Project`, `Owner`, `Environment`, `CostCenter`, `ManagedBy`).
-   * Proven load resilience: **2,010 requests @ 20 concurrent users with 0.00% error rate**.
-   * One-page AWS cost report detailing all service spend.
+### Prerequisites
+* [AWS CLI v2](https://aws.amazon.com/cli/) configured (`aws configure`)
+* [Terraform >= 1.5.0](https://www.terraform.io/) installed
+* [Docker Desktop](https://www.docker.com/) installed
+* Node.js v20+ and Java 21 / Maven 3.9+ installed
+* Git installed
 
 ---
 
-## 🛠️ Technology Stack
+### Step 1: Local Container Verification (Milestone M1)
 
-| Layer | Technologies & Tools |
-| :--- | :--- |
-| **Cloud Infrastructure (IaC)** | Terraform 1.5+, AWS Provider ~> 5.0 |
-| **Compute & Containers** | AWS ECS Fargate, Amazon ECR, Docker, multi-stage builds |
-| **Database & Caching** | Amazon RDS MySQL 8.0, HikariCP Connection Pooling, Spring Data JPA |
-| **Serverless & Storage** | AWS Lambda (Python 3.12, Pillow), Amazon S3, S3 Event Notifications |
-| **Networking & CDN** | AWS VPC, Public/Private Subnets, NAT Gateway, Internet Gateway, ALB, CloudFront (OAC) |
-| **Security & Secrets** | AWS Secrets Manager, SSM Parameter Store, IAM Roles & Policies, Gitleaks, JWT (jjwt 0.12) |
-| **Observability** | Amazon CloudWatch Logs, Metrics, Dashboards, Metric Alarms, Amazon SNS |
-| **Backend Framework** | Java 21, Spring Boot 3.2.3, Spring Security 6, Maven, JUnit 5, Mockito |
-| **Frontend Framework** | React 18, Vite 5, Material-UI (MUI v5), Axios, React Router v6 |
-| **CI/CD Automation** | GitHub Actions (`.github/workflows/deploy.yml`) |
+1. Build local multi-stage Docker image:
+   ```bash
+   cd ticketdesk-backend
+   docker build -t ticketdesk-api:local .
+   ```
+2. Run container locally with Docker Compose:
+   ```bash
+   cd ..
+   docker-compose up -d --build
+   ```
+3. Test local health check:
+   ```bash
+   curl http://localhost:8080/api/health
+   ```
+   **Expected response**: `UP` (HTTP 200)
 
 ---
 
-## 🏆 Milestone Progress Matrix (M1 – M8)
+### Step 2: Infrastructure Provisioning with Terraform (Milestones M2, M3, M4, M5, M7)
 
-| Milestone | Description | Status | Evidence |
-| :--- | :--- | :---: | :--- |
-| **M1 — App in a Box** | Containerized app running locally with Docker Compose | ✅ **Complete** | [`docker-compose.yml`](docker-compose.yml) with backend, frontend, and MySQL |
-| **M2 — Foundation in Cloud** | Multi-AZ VPC, subnets, IGW, NAT, and RDS MySQL | ✅ **Complete** | [`terraform/vpc.tf`](terraform/vpc.tf) & [`terraform/rds.tf`](terraform/rds.tf) |
-| **M3 — Compute on ECS** | ECS Fargate service behind Application Load Balancer | ✅ **Complete** | [`terraform/ecs.tf`](terraform/ecs.tf) & [`terraform/alb.tf`](terraform/alb.tf) |
-| **M4 — Global Edge CDN** | S3 frontend + CloudFront OAC + ALB API routing | ✅ **Complete** | [`terraform/frontend.tf`](terraform/frontend.tf) serving at CloudFront URL |
-| **M5 — Serverless Attachments** | Presigned S3 direct upload + Lambda Pillow thumbnailer | ✅ **Complete** | [`lambda/thumbnail_generator.py`](lambda/thumbnail_generator.py) & S3 CORS |
-| **M6 — CI/CD Pipeline** | GitHub Actions build $\rightarrow$ test $\rightarrow$ scan $\rightarrow$ ECR $\rightarrow$ ECS $\rightarrow$ smoke test | ✅ **Complete** | [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) automated deploys |
-| **M7 — Observability** | 14-day logs, Operations Dashboard & 3 Metric Alarms | ✅ **Complete** | [`terraform/observability.tf`](terraform/observability.tf) with 3 alarms in OK state |
-| **M8 — Harden and Prove It** | Universal tagging, 20-user load test (0 errors), cost report | ✅ **Complete** | [`cost_report.md`](cost_report.md) & [`scripts/load_test.py`](scripts/load_test.py) |
+1. Navigate to the Terraform configuration directory:
+   ```bash
+   cd terraform
+   ```
+2. Initialize Terraform modules and providers:
+   ```bash
+   terraform init
+   ```
+3. Validate configuration files:
+   ```bash
+   terraform validate
+   ```
+4. Review planned cloud resources:
+   ```bash
+   terraform plan
+   ```
+5. Apply and provision the complete AWS stack (~8-10 minutes):
+   ```bash
+   terraform apply -auto-approve
+   ```
+
+---
+
+### Step 3: Build & Push Image to Amazon ECR (Milestone M3)
+
+1. Fetch ECR Repository URL from Terraform outputs:
+   ```bash
+   export ECR_URL=$(terraform output -raw ecr_backend_repository_url)
+   export AWS_REGION="us-east-1"
+   ```
+2. Authenticate Docker to Amazon ECR:
+   ```bash
+   aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URL
+   ```
+3. Tag image with Git commit SHA and push to ECR:
+   ```bash
+   export COMMIT_SHA=$(git rev-parse --short HEAD || echo "v1.0")
+   docker tag ticketdesk-api:local $ECR_URL:$COMMIT_SHA
+   docker tag ticketdesk-api:local $ECR_URL:latest
+   docker push $ECR_URL:$COMMIT_SHA
+   docker push $ECR_URL:latest
+   ```
+
+---
+
+### Step 4: Build & Deploy Frontend to S3 (Milestone M4)
+
+1. Navigate to frontend directory:
+   ```bash
+   cd ../ticketdesk-frontend
+   ```
+2. Install dependencies & build production static assets:
+   ```bash
+   npm install
+   npm run build
+   ```
+3. Upload static assets to private S3 frontend bucket:
+   ```bash
+   export FRONTEND_BUCKET=$(terraform -chdir=../terraform output -raw s3_frontend_bucket_name)
+   aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete
+   ```
+4. Invalidate CloudFront CDN Cache:
+   ```bash
+   export CLOUDFRONT_ID=$(terraform -chdir=../terraform output -raw cloudfront_distribution_id || echo "E3VZTH6XGJXK77")
+   aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "/*"
+   ```
+
+---
+
+### Step 5: End-to-End Verification & Smoke Test (Milestones M6 & M8)
+
+1. Obtain CloudFront URL:
+   ```bash
+   export CLOUDFRONT_URL="https://$(terraform -chdir=../terraform output -raw cloudfront_domain_name)"
+   echo "Application Live URL: $CLOUDFRONT_URL"
+   ```
+2. Run automated smoke tests & load sanity check (20 concurrent users):
+   ```bash
+   cd ..
+   python scripts/load_test.py
+   ```
+   **Expected Result**:
+   ```text
+   ============================================================
+   LOAD SANITY CHECK FINAL RESULTS
+   ============================================================
+   Target URL:              https://d34fecnctmxvyw.cloudfront.net
+   Concurrent Users:        20
+   Total Duration:          60s
+   Total Requests Executed: 2010
+   Successful Requests:     2010
+   Failed Requests:         0
+   Error Rate:              0.00%
+   ============================================================
+   LOAD TEST RESULT: PASSED (0 errors encountered!)
+   ```
+
+---
+
+## 🧹 Stack Destruction & Clean Rebuild (Milestone M8)
+
+To prove 100% Infrastructure as Code reproducibility, tear down all created AWS resources:
+
+```bash
+cd terraform
+terraform destroy -auto-approve
+```
+
+To recreate the entire stack from zero with a single command:
+```bash
+terraform apply -auto-approve
+```
 
 ---
 
 ## 🔐 Demo Credentials
 
-| Role | Username | Password |
-| :--- | :--- | :--- |
-| **System Administrator** | `admin` | `admin123` |
-| **Standard Employee** | `user1` | `password` |
+| Role | Username | Password | Permissions |
+| :--- | :--- | :--- | :--- |
+| **System Administrator** | `admin` | `admin123` | Full access (Manage Users, Categories, Metrics) |
+| **Standard Employee** | `user1` | `password` | Create & view tickets, upload attachments |
 
 ---
 
-## 📁 Repository Structure
+## 📊 Verification & Documentation Matrix
 
-```text
-TicketDesk/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml            # Automated 4-stage CI/CD pipeline
-├── lambda/
-│   ├── package/                  # Pillow binary dependencies for Lambda
-│   └── thumbnail_generator.py    # Python Lambda thumbnail function
-├── scripts/
-│   └── load_test.py              # 20-concurrent-user load sanity check script
-├── terraform/
-│   ├── alb.tf                    # Application Load Balancer & Target Groups
-│   ├── ecs.tf                    # ECS Fargate Cluster, Task Def, & Service
-│   ├── frontend.tf               # S3 Static Hosting, CloudFront & OAC
-│   ├── iam.tf                    # IAM Roles & Least-Privilege Policies
-│   ├── main.tf                   # Terraform Provider & Default Resource Tags
-│   ├── observability.tf          # CloudWatch Log Groups, Dashboard & Alarms
-│   ├── outputs.tf                # Infrastructure Output Values
-│   ├── rds.tf                    # RDS MySQL & DB Subnet Groups
-│   ├── secrets.tf                # AWS Secrets Manager & SSM Parameters
-│   ├── serverless.tf             # S3 Attachments Bucket & Lambda Function
-│   ├── variables.tf              # Configurable Input Variables
-│   └── vpc.tf                    # VPC, Subnets, NAT, IGW, Route Tables
-├── ticketdesk-backend/           # Spring Boot 3.2 Java 21 REST API
-│   ├── src/main/java/com/ticketdesk/
-│   │   ├── attachment/           # Presigned S3 uploads & metadata
-│   │   ├── auth/                 # JWT Authentication & RBAC
-│   │   ├── category/             # Ticket categories
-│   │   ├── comment/              # Ticket discussions & comments
-│   │   ├── config/               # Security & S3Presigner configuration
-│   │   ├── dashboard/            # Analytical metrics
-│   │   ├── ticket/               # Ticket lifecycle management
-│   │   └── user/                 # User profiles & directory
-│   ├── src/test/java/com/ticketdesk/ # JUnit 5 & Mockito Unit Tests
-│   ├── Dockerfile                # Multi-stage container build
-│   └── pom.xml                   # Maven dependencies
-├── ticketdesk-frontend/          # React 18 + Vite 5 SPA
-│   ├── src/
-│   │   ├── components/           # Navbar, Sidebar, Theme Toggle
-│   │   ├── pages/                # Dashboard, Tickets, User Admin, Profile
-│   │   └── services/             # Axios API & Direct S3 PUT Upload Service
-│   ├── Dockerfile
-│   └── package.json
-├── ARCHITECTURE.md               # Detailed Cloud Architecture Specification
-├── DEPLOYMENT_GUIDE.md           # Step-by-Step Infrastructure Deployment Runbook
-├── DEPLOYMENT_READINESS_CHECKLIST.md # §6 Readiness Audit (34 Checklist Items)
-├── DEMO_RUNBOOK.md               # 10-Minute Facilitator Demonstration Guide
-├── cost_report.md                # One-Page AWS Cost & Spend Analysis
-└── docker-compose.yml            # Local development orchestration
-```
+* **System Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+* **Deployment Guide & Runbook**: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+* **Deployment Readiness Checklist (34 Items)**: [DEPLOYMENT_READINESS_CHECKLIST.md](DEPLOYMENT_READINESS_CHECKLIST.md)
+* **One-Page AWS Cost Report**: [cost_report.md](cost_report.md)
+* **10-Minute Facilitator Demo Script**: [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md)
