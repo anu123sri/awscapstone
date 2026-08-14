@@ -76,9 +76,10 @@ const Layout = ({ children, themeMode, toggleTheme }) => {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
         <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 'bold' }}>T</Avatar>
-        <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
           TicketDesk
         </Typography>
+        <Chip label="v1.0.0 Live" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, ml: 1 }} />
       </Box>
       <Divider />
       
