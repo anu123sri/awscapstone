@@ -49,13 +49,13 @@ resource "aws_ssm_parameter" "db_user" {
 
 # 5. RDS MySQL 8.0 Instance
 resource "aws_db_instance" "mysql" {
-  identifier           = "${var.project_name}-db"
-  engine               = "mysql"
-  engine_version       = "8.0"
-  instance_class       = "db.t4g.micro"
-  allocated_storage    = 20
+  identifier            = "${var.project_name}-db"
+  engine                = "mysql"
+  engine_version        = "8.0"
+  instance_class        = "db.t4g.micro"
+  allocated_storage     = 20
   max_allocated_storage = 50
-  storage_type         = "gp3"
+  storage_type          = "gp3"
 
   db_name  = var.db_name
   username = var.db_username
@@ -74,4 +74,23 @@ resource "aws_db_instance" "mysql" {
   tags = {
     Name = "${var.project_name}-mysql-db"
   }
+}
+# 6. AWS Secrets Manager Secret for JWT Secret Key
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "jwt_secret" {
+  name                    = "/${var.project_name}/${var.environment}/jwt_secret"
+  recovery_window_in_days = 0
+
+  tags = {
+    Name = "${var.project_name}-jwt-secret"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "jwt_secret" {
+  secret_id     = aws_secretsmanager_secret.jwt_secret.id
+  secret_string = random_password.jwt_secret.result
 }

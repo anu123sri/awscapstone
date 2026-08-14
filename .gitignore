@@ -30,5 +30,12 @@ terraform.exe
 .DS_Store
 Thumbs.db
 
-# Generated ZIP
+# Generated ZIP and Lambda package
 *.zip
+lambda/package/
+
+# Scratch & Test JSON
+terraform/*.json
+terraform/*.jpg
+terraform/*.txt
+terraform/sample_screenshot.jpg

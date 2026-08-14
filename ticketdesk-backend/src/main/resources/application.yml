@@ -32,3 +32,7 @@ ticketdesk:
   jwt:
     secret: ${TICKETDESK_JWT_SECRET}
     expiration-ms: 86400000
+
+attachments:
+  s3:
+    bucket: ${ATTACHMENTS_S3_BUCKET}

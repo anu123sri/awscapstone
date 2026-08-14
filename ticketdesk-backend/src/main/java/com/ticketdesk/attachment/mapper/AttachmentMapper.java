@@ -7,14 +7,14 @@ public class AttachmentMapper {
 
     public static AttachmentDto mapToAttachmentDto(Attachment attachment) {
         if (attachment == null) return null;
-        long size = (attachment.getData() != null) ? attachment.getData().length : 0L;
+
         String downloadUrl = "/api/attachments/" + attachment.getId();
 
         return new AttachmentDto(
                 attachment.getId(),
                 attachment.getFileName(),
                 attachment.getFileType(),
-                size,
+                null, // File size will be handled separately for S3
                 attachment.getTicket().getId(),
                 downloadUrl
         );

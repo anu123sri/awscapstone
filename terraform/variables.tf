@@ -91,6 +91,6 @@ variable "backend_desired_count" {
 variable "enable_cloudfront" {
   description = "Set to true to provision CloudFront Distribution (requires AWS Support CloudFront verification for new accounts)"
   type        = bool
-  default     = false
+  default     = true
 }
 

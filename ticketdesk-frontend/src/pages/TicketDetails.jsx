@@ -508,7 +508,7 @@ const TicketDetails = () => {
                             }}
                           >
                             <img
-                              src={`http://3.108.7.78:8080/api/attachments/${file.id}`}
+                              src={`/api/attachments/${file.id}`}
                               alt={file.fileName}
                               style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain' }}
                             />

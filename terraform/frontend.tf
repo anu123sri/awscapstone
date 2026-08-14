@@ -70,7 +70,7 @@ resource "aws_cloudfront_distribution" "cdn" {
 
     forwarded_values {
       query_string = true
-      headers      = ["Authorization", "Host", "Accept", "Content-Type"]
+      headers      = ["Authorization", "Host", "Accept", "Content-Type", "Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
 
       cookies {
         forward = "all"
@@ -110,6 +110,13 @@ resource "aws_cloudfront_distribution" "cdn" {
     }
   }
 
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+
   viewer_certificate {
     cloudfront_default_certificate = true
   }
@@ -128,13 +135,13 @@ resource "aws_s3_bucket_policy" "frontend" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontServicePrincipal"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontServicePrincipal"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
-        Action   = "s3:GetObject"
-        Resource = "${aws_s3_bucket.frontend.arn}/*"
+        Action   = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [aws_s3_bucket.frontend.arn, "${aws_s3_bucket.frontend.arn}/*"]
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.cdn[0].arn

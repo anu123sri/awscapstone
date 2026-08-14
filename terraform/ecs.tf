@@ -69,6 +69,10 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name      = "SPRING_DATASOURCE_PASSWORD"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "TICKETDESK_JWT_SECRET"
+          valueFrom = aws_secretsmanager_secret.jwt_secret.arn
         }
       ]
 
@@ -95,6 +99,7 @@ resource "aws_ecs_service" "backend" {
   task_definition                    = aws_ecs_task_definition.backend.arn
   desired_count                      = var.backend_desired_count
   launch_type                        = "FARGATE"
+  enable_execute_command             = true
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 50
 

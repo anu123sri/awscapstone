@@ -37,7 +37,8 @@ resource "aws_iam_policy" "ecs_secrets_policy" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          aws_secretsmanager_secret.db_credentials.arn
+          aws_secretsmanager_secret.db_credentials.arn,
+          aws_secretsmanager_secret.jwt_secret.arn
         ]
       },
       {
@@ -158,4 +159,33 @@ resource "aws_iam_policy" "lambda_s3_policy" {
 resource "aws_iam_role_policy_attachment" "lambda_s3" {
   role       = aws_iam_role.lambda_execution_role.name
   policy_arn = aws_iam_policy.lambda_s3_policy.arn
+}
+
+resource "aws_iam_policy" "ecs_exec_policy" {
+  name        = "${var.project_name}-ecs-exec-policy"
+  description = "Permissions required for ECS Exec"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_exec" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.ecs_exec_policy.arn
 }

@@ -32,7 +32,7 @@ resource "aws_s3_bucket_cors_configuration" "attachments" {
 # Archive Python Lambda Code
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_file = "${path.module}/../lambda/thumbnail_generator.py"
+  source_dir  = "${path.module}/../lambda/package"
   output_path = "${path.module}/thumbnail_generator.zip"
 }
 

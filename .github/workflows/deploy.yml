@@ -13,12 +13,14 @@ env:
   ECR_REPOSITORY: ticketdesk-backend
   ECS_SERVICE: ticketdesk-backend-service
   ECS_CLUSTER: ticketdesk-cluster
-  ECS_TASK_DEFINITION: ticketdesk-backend-task
+  CLOUDFRONT_DISTRIBUTION_ID: E3VZTH6XGJXK77
+  S3_FRONTEND_BUCKET: ticketdesk-frontend-5ujbds
+  PROD_URL: https://d34fecnctmxvyw.cloudfront.net
 
 jobs:
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # Stage 1: Security & Quality Checks (Secrets Scan + Unit Tests)
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   quality-check:
     name: Security Scan & Unit Tests
     runs-on: ubuntu-latest
@@ -46,9 +48,9 @@ jobs:
           cd ticketdesk-backend
           mvn test -B
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # Stage 2: Build & Push Container Image to Amazon ECR
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   build-and-push:
     name: Build & Push to ECR
     needs: quality-check
@@ -88,16 +90,19 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-  # ---------------------------------------------------------------------------
-  # Stage 3: Deploy to Amazon ECS Fargate
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
+  # Stage 3: Deploy to AWS (ECS Fargate + S3 Frontend + CloudFront Invalidation)
+  # ===========================================================================
   deploy:
-    name: Deploy to ECS Fargate
+    name: Deploy to Production
     needs: [quality-check, build-and-push]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -105,55 +110,64 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download current ECS Task Definition
+      - name: Update ECS Backend Service Deployment
         run: |
-          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-def.json
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
 
-      - name: Fill new image ID in Task Definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
+      - name: Set up Node.js for Frontend
+        uses: actions/setup-node@v4
         with:
-          task-definition: task-def.json
-          container-name: ticketdesk-backend
-          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ needs.build-and-push.outputs.image_tag }}
+          node-version: '20'
 
-      - name: Deploy Amazon ECS Task Definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+      - name: Build Frontend Static Assets
+        run: |
+          cd ticketdesk-frontend
+          npm ci || npm install
+          npm run build
 
-  # ---------------------------------------------------------------------------
+      - name: Sync Frontend to S3
+        run: |
+          aws s3 sync ticketdesk-frontend/dist/ s3://${{ env.S3_FRONTEND_BUCKET }}/ --delete
+
+      - name: Invalidate CloudFront CDN Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  # ===========================================================================
   # Stage 4: Smoke Test Verification
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   smoke-test:
     name: Post-Deployment Smoke Test
     needs: deploy
     runs-on: ubuntu-latest
 
     steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Get Load Balancer DNS
-        id: alb
+      - name: Run Smoke Test against CloudFront Endpoint
         run: |
-          ALB_DNS=$(aws elbv2 describe-load-balancers --names ticketdesk-alb --query 'LoadBalancers[0].DNSName' --output text)
-          echo "alb_dns=${ALB_DNS}" >> $GITHUB_OUTPUT
-
-      - name: Run Smoke Test against ALB Endpoint
-        run: |
-          echo "Testing endpoint: http://${{ steps.alb.outputs.alb_dns }}/api/health"
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ steps.alb.outputs.alb_dns }}/api/health)
-          if [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 302 ]; then
+          echo "Waiting 15 seconds for rolling task stabilization..."
+          sleep 15
+          echo "Testing Production Health Endpoint: ${{ env.PROD_URL }}/api/health"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.PROD_URL }}/api/health)
+          if [ "$RESPONSE" -eq 200 ]; then
             echo "Smoke test PASSED with HTTP status $RESPONSE"
           else
             echo "Smoke test FAILED with HTTP status $RESPONSE"
+            exit 1
+          fi
+
+      - name: Test Frontend Availability
+        run: |
+          echo "Testing Production Frontend: ${{ env.PROD_URL }}"
+          FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.PROD_URL }})
+          if [ "$FRONTEND_RESPONSE" -eq 200 ]; then
+            echo "Frontend smoke test PASSED with HTTP status $FRONTEND_RESPONSE"
+          else
+            echo "Frontend smoke test FAILED with HTTP status $FRONTEND_RESPONSE"
             exit 1
           fi

@@ -25,9 +25,8 @@ public class Attachment {
     @Column(name = "file_type", nullable = false)
     private String fileType;
 
-    @Lob
-    @Column(name = "data", columnDefinition = "LONGBLOB", nullable = false)
-    private byte[] data;
+    @Column(name = "s3_key", nullable = false)
+    private String s3Key;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", nullable = false)

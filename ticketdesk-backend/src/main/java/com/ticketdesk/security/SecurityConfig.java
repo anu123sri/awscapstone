@@ -60,6 +60,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
 
                         // Public routes
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/health", "/api/health").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(
@@ -125,15 +126,7 @@ public class SecurityConfig {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:5173",
-                "http://localhost:3000",
-                "http://localhost:80",
-                "http://127.0.0.1:5173",
-
-                // AWS deployed frontend
-                "http://65.2.169.244"
-        ));
+        configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
 
         configuration.setAllowedMethods(Arrays.asList(
                 "GET",
